@@ -1,4 +1,6 @@
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Random;
 import java.util.Scanner;
 
 
@@ -75,12 +77,50 @@ public class Knapsack {
         return totalChromosomes;
     }
 
-    private void Selection() {
+    Random rand = new Random();
 
+    //selection and crossover repeated by 1/2 pop size
+    private ArrayList<Chromosome> Selection(ArrayList<Chromosome> chromosomes) {
+        ArrayList<Chromosome> selectedChromosomes = new ArrayList<>();
+        ArrayList<Integer> cumulativeFitness = new ArrayList<>();
+
+        cumulativeFitness.add(0);
+        for (int i = 1; i <= chromosomes.size(); i++) {
+            cumulativeFitness.add(cumulativeFitness.get(i - 1) + chromosomes.get(i-1).getFitnessValue());
+        }
+
+        while (selectedChromosomes.size() != 2) {
+            int randomNumber = rand.nextInt(cumulativeFitness.get(cumulativeFitness.size() - 1) + 1);
+            for (int k = 0; k < cumulativeFitness.size() - 1; k++) {
+                if (randomNumber > cumulativeFitness.get(k) && randomNumber <= cumulativeFitness.get(k + 1)) {
+                    Chromosome c = chromosomes.get(k + 1);
+                    if (!selectedChromosomes.contains(c)) {
+                        selectedChromosomes.add(c);
+                    }
+                }
+
+            }
+        }
+        return selectedChromosomes;
     }
 
-    private void Crossover() {
+    private ArrayList<Chromosome> Crossover(ArrayList<Chromosome> selectedChromosomes, int populationSize, double Pc) {
+        float Rc = rand.nextFloat();
+        if (Rc <= Pc) {
+            int Xc = rand.nextInt(numberOfItems-1) + 1;
 
+            Chromosome firstChromosome = selectedChromosomes.get(0);
+            Chromosome secondChromosome = selectedChromosomes.get(1);
+
+            for(int i = Xc; i<items.size(); i++) {
+                int temp = firstChromosome.geneAt(i);
+
+                firstChromosome.setGeneAt(i, secondChromosome.geneAt(i));
+
+                secondChromosome.setGeneAt(i, temp);
+            }
+        }
+        return selectedChromosomes;
     }
 
     private void Mutation() {
@@ -101,6 +141,17 @@ public class Knapsack {
             this.fitnessValue = fitnessValue;
         }
 
+        public int getFitnessValue() {
+            return fitnessValue;
+        }
+
+        public int geneAt(int pos) {
+            return genes.get(pos);
+        }
+
+        public void setGeneAt(int pos, int value) {
+            genes.set(pos, value);
+        }
     }
 
     static class Item {
