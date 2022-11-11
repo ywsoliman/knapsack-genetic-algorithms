@@ -4,13 +4,13 @@ import java.util.Scanner;
 
 public class Knapsack {
 
-    private final int numberOfItems;
     Random rand = new Random();
-    private int weight;
+    private int numberOfItems;
+    private int knapsackWeight;
     private ArrayList<Item> items;
 
     public Knapsack(int weight, int numberOfItems, ArrayList<Item> items) {
-        this.weight = weight;
+        this.knapsackWeight = weight;
         this.numberOfItems = numberOfItems;
         this.items = items;
     }
@@ -40,11 +40,48 @@ public class Knapsack {
 
     }
 
-    private int calculateFitness(ArrayList<Integer> chromosome) {
+    public int getKnapsackWeight() {
+        return knapsackWeight;
+    }
+
+    public void setKnapsackWeight(int knapsackWeight) {
+        this.knapsackWeight = knapsackWeight;
+    }
+
+    public int getNumberOfItems() {
+        return numberOfItems;
+    }
+
+    public void setNumberOfItems(int numberOfItems) {
+        this.numberOfItems = numberOfItems;
+    }
+
+    public ArrayList<Item> getItems() {
+        return items;
+    }
+
+    public void setItems(ArrayList<Item> items) {
+        this.items = items;
+    }
+
+    public void clearItems() {
+        items.clear();
+    }
+
+    public int calculateWeight(ArrayList<Integer> chromosome) {
+        int totalWeight = 0;
+        for (int i = 0; i < chromosome.size(); i++) {
+            if (chromosome.get(i) == 1)
+                totalWeight += items.get(i).getWeight();
+        }
+        return totalWeight;
+    }
+
+    public int calculateFitness(ArrayList<Integer> chromosome) {
         int fitness = 0;
         for (int i = 0; i < chromosome.size(); i++) {
             if (chromosome.get(i) == 1) {
-                fitness += items.get(i).value;
+                fitness += items.get(i).getValue();
             }
         }
         return fitness;
@@ -57,13 +94,19 @@ public class Knapsack {
         for (int i = 0; i < populationSize; i++) {
 
             ArrayList<Integer> chromosome = new ArrayList<>(numberOfItems);
+            double random;
 
             while (true) {
 
                 for (int gene = 0; gene < numberOfItems; gene++) {
-                    chromosome.add((int) Math.round(Math.random()));
+                    random = rand.nextDouble();
+                    if (random <= 0.5)
+                        chromosome.add(0);
+                    else
+                        chromosome.add(1);
                 }
-                if (calculateFitness(chromosome) <= weight) {
+
+                if (calculateWeight(chromosome) <= knapsackWeight) {
                     totalChromosomes.add(new Chromosome(chromosome, calculateFitness(chromosome)));
                     break;
                 }
@@ -85,14 +128,15 @@ public class Knapsack {
             cumulativeFitness.add(cumulativeFitness.get(i - 1) + chromosomes.get(i - 1).getFitnessValue());
         }
 
+        double randomNumber;
+
         while (selectedChromosomes.size() != 2) {
-            int randomNumber = rand.nextInt(cumulativeFitness.get(cumulativeFitness.size() - 1) + 1);
+            randomNumber = rand.nextInt(cumulativeFitness.get(cumulativeFitness.size() - 1) + 1);
             for (int k = 0; k < cumulativeFitness.size() - 1; k++) {
                 if (randomNumber > cumulativeFitness.get(k) && randomNumber <= cumulativeFitness.get(k + 1)) {
                     Chromosome c = chromosomes.get(k);
-                    if (!selectedChromosomes.contains(c)) {
-                        selectedChromosomes.add(c);
-                    }
+                    selectedChromosomes.add(c);
+                    break;
                 }
             }
         }
@@ -100,30 +144,38 @@ public class Knapsack {
     }
 
     private ArrayList<Chromosome> Crossover(ArrayList<Chromosome> selectedChromosomes, double Pc) {
+
+        if (selectedChromosomes.get(0) == selectedChromosomes.get(1))
+            return selectedChromosomes;
+
         double Rc = rand.nextDouble();
+
+        ArrayList<Chromosome> afterCrossover = new ArrayList<>();
+        afterCrossover.add(selectedChromosomes.get(0));
+        afterCrossover.add(selectedChromosomes.get(1));
+
         if (Rc <= Pc) {
+
             int Xc = rand.nextInt(numberOfItems - 1) + 1;
 
-            Chromosome firstChromosome = selectedChromosomes.get(0);
-            Chromosome secondChromosome = selectedChromosomes.get(1);
-
             for (int i = Xc; i < items.size(); i++) {
-                int temp = firstChromosome.geneAt(i);
-                firstChromosome.setGeneAt(i, secondChromosome.geneAt(i));
-                secondChromosome.setGeneAt(i, temp);
+                int temp = afterCrossover.get(0).geneAt(i);
+                afterCrossover.get(0).setGeneAt(i, afterCrossover.get(1).geneAt(i));
+                afterCrossover.get(1).setGeneAt(i, temp);
             }
         }
-        return selectedChromosomes;
+        return afterCrossover;
     }
 
     private void Mutation(ArrayList<Chromosome> totalChromosomes, double Pm) {
 
+        double Rm;
 
         for (Chromosome chromosome : totalChromosomes) {
 
             for (int i = 0; i < chromosome.getGenes().size(); i++) {
 
-                double Rm = rand.nextDouble();
+                Rm = rand.nextDouble() / 10;
 
                 if (Rm <= Pm) {
                     if (chromosome.geneAt(i) == 1)
@@ -132,24 +184,30 @@ public class Knapsack {
                         chromosome.setGeneAt(i, 1);
                 }
             }
-
-            chromosome.setFitnessValue(calculateFitness(chromosome.getGenes()));
-
         }
 
+        Chromosome c = totalChromosomes.get(0);
+        for (Chromosome chromosome : totalChromosomes) {
+            if (c.getFitnessValue() < chromosome.getFitnessValue() && calculateWeight(chromosome.getGenes()) < knapsackWeight)
+                c = chromosome;
+        }
 
+        // INFEASIBLE SOLUTION
+        for (Chromosome chromosome : totalChromosomes) {
+            if (calculateWeight(chromosome.getGenes()) > knapsackWeight) {
+                chromosome = c;
+            }
+        }
     }
 
     private void Replacement(ArrayList<Chromosome> oldGeneration, ArrayList<Chromosome> newGeneration) {
-
-        oldGeneration = new ArrayList<>(newGeneration);
-
+        oldGeneration = newGeneration;
     }
 
     public void solve() {
 
-        int populationSize = numberOfItems * 2;
-        int maxGeneration = 10;
+        int populationSize = 32;
+        int maxGeneration = 100;
         double Pc = 0.6;
         double Pm = 0.05;
         ArrayList<Chromosome> currentGeneration = InitializePopulation(populationSize);
@@ -158,25 +216,33 @@ public class Knapsack {
         for (int i = 0; i < maxGeneration; i++) {
             ArrayList<Chromosome> newGeneration = new ArrayList<>();
 
-            for (int j = 0; j < populationSize / 2; j++) {
+            while (newGeneration.size() != currentGeneration.size()) {
+
                 ArrayList<Chromosome> selectedParents = Selection(currentGeneration);
                 ArrayList<Chromosome> parentsCrossover = Crossover(selectedParents, Pc);
                 newGeneration.add(parentsCrossover.get(0));
                 newGeneration.add(parentsCrossover.get(1));
+
             }
             Mutation(newGeneration, Pm);
             Replacement(currentGeneration, newGeneration);
         }
 
+        int bestFitness = Integer.MIN_VALUE;
         for (Chromosome c : currentGeneration) {
-            System.out.println(c.getFitnessValue());
+            if (bestFitness < c.getFitnessValue()) {
+                bestFitness = c.getFitnessValue();
+            }
         }
+
+        System.out.println(bestFitness);
+        clearItems();
 
     }
 
     static class Chromosome {
 
-        private final ArrayList<Integer> genes;
+        private ArrayList<Integer> genes;
         private int fitnessValue;
 
         public Chromosome(ArrayList<Integer> genes, int fitnessValue) {
@@ -196,6 +262,10 @@ public class Knapsack {
             return genes;
         }
 
+        public void setGenes(ArrayList<Integer> genes) {
+            this.genes = genes;
+        }
+
         public int geneAt(int pos) {
             return genes.get(pos);
         }
@@ -212,6 +282,22 @@ public class Knapsack {
 
         public Item(int weight, int value) {
             this.weight = weight;
+            this.value = value;
+        }
+
+        public int getWeight() {
+            return weight;
+        }
+
+        public void setWeight(int weight) {
+            this.weight = weight;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public void setValue(int value) {
             this.value = value;
         }
 
