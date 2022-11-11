@@ -134,19 +134,25 @@ public class Knapsack {
 
         ArrayList<Chromosome> selectedChromosomes = new ArrayList<>();
         ArrayList<Integer> cumulativeFitness = calculateCumulative(chromosomes);
+
         double randomNumber;
+        int firstCumulate = cumulativeFitness.get(0);
+        int lastCumulate = cumulativeFitness.get(cumulativeFitness.size() - 1);
 
         while (selectedChromosomes.size() != 2) {
-            randomNumber = rand.nextInt(cumulativeFitness.get(cumulativeFitness.size() - 1) + 1);
+
+            randomNumber = rand.nextInt(lastCumulate - firstCumulate) + firstCumulate;
             for (int i = 0; i < cumulativeFitness.size() - 1; i++) {
                 if (cumulativeFitness.get(i) >= randomNumber) {
                     selectedChromosomes.add(chromosomes.get(i));
                     break;
                 }
             }
+
         }
+
         return selectedChromosomes;
-        
+
     }
 
     private ArrayList<Chromosome> Crossover(ArrayList<Chromosome> selectedChromosomes, double Pc) {
@@ -206,7 +212,7 @@ public class Knapsack {
 
     public void solve() {
 
-        int populationSize = 50;
+        int populationSize = 20;
         int maxGeneration = 10;
         double Pc = 0.6;
         double Pm = 0.05;
