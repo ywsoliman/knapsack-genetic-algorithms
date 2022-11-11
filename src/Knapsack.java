@@ -117,30 +117,36 @@ public class Knapsack {
         return totalChromosomes;
     }
 
+    private ArrayList<Integer> calculateCumulative(ArrayList<Chromosome> chromosomes) {
+
+        ArrayList<Integer> cumulativeFitness = new ArrayList<>();
+
+        cumulativeFitness.add(chromosomes.get(0).getFitnessValue());
+        for (int i = 1; i < chromosomes.size(); i++)
+            cumulativeFitness.add(cumulativeFitness.get(i - 1) + chromosomes.get(i).getFitnessValue());
+
+        return cumulativeFitness;
+
+    }
+
     //selection and crossover repeated by 1/2 pop size
     private ArrayList<Chromosome> Selection(ArrayList<Chromosome> chromosomes) {
 
         ArrayList<Chromosome> selectedChromosomes = new ArrayList<>();
-        ArrayList<Integer> cumulativeFitness = new ArrayList<>();
-
-        cumulativeFitness.add(0);
-        for (int i = 1; i <= chromosomes.size(); i++) {
-            cumulativeFitness.add(cumulativeFitness.get(i - 1) + chromosomes.get(i - 1).getFitnessValue());
-        }
-
+        ArrayList<Integer> cumulativeFitness = calculateCumulative(chromosomes);
         double randomNumber;
 
         while (selectedChromosomes.size() != 2) {
             randomNumber = rand.nextInt(cumulativeFitness.get(cumulativeFitness.size() - 1) + 1);
-            for (int k = 0; k < cumulativeFitness.size() - 1; k++) {
-                if (randomNumber > cumulativeFitness.get(k) && randomNumber <= cumulativeFitness.get(k + 1)) {
-                    Chromosome c = chromosomes.get(k);
-                    selectedChromosomes.add(c);
+            for (int i = 0; i < cumulativeFitness.size() - 1; i++) {
+                if (cumulativeFitness.get(i) >= randomNumber) {
+                    selectedChromosomes.add(chromosomes.get(i));
                     break;
                 }
             }
         }
         return selectedChromosomes;
+        
     }
 
     private ArrayList<Chromosome> Crossover(ArrayList<Chromosome> selectedChromosomes, double Pc) {
@@ -167,36 +173,30 @@ public class Knapsack {
         return afterCrossover;
     }
 
-    private void Mutation(ArrayList<Chromosome> totalChromosomes, double Pm) {
+    private void Mutation(ArrayList<Chromosome> parents, ArrayList<Chromosome> totalChromosomes, double Pm) {
 
         double Rm;
 
-        for (Chromosome chromosome : totalChromosomes) {
+        for (int i = 0; i < totalChromosomes.size(); i++) {
 
-            for (int i = 0; i < chromosome.getGenes().size(); i++) {
+            for (int j = 0; j < totalChromosomes.get(i).getGenes().size(); j++) {
 
                 Rm = rand.nextDouble() / 10;
 
                 if (Rm <= Pm) {
-                    if (chromosome.geneAt(i) == 1)
-                        chromosome.setGeneAt(i, 0);
+                    if (totalChromosomes.get(i).geneAt(j) == 1)
+                        totalChromosomes.get(i).setGeneAt(j, 0);
                     else
-                        chromosome.setGeneAt(i, 1);
+                        totalChromosomes.get(i).setGeneAt(j, 1);
                 }
             }
-        }
 
-        Chromosome c = totalChromosomes.get(0);
-        for (Chromosome chromosome : totalChromosomes) {
-            if (c.getFitnessValue() < chromosome.getFitnessValue() && calculateWeight(chromosome.getGenes()) < knapsackWeight)
-                c = chromosome;
-        }
-
-        // INFEASIBLE SOLUTION
-        for (Chromosome chromosome : totalChromosomes) {
-            if (calculateWeight(chromosome.getGenes()) > knapsackWeight) {
-                chromosome = c;
+            if (calculateWeight(totalChromosomes.get(i).getGenes()) <= knapsackWeight)
+                totalChromosomes.get(i).setFitnessValue(calculateFitness(totalChromosomes.get(i).getGenes()));
+            else {
+                totalChromosomes.set(i, parents.get(i));
             }
+
         }
     }
 
@@ -206,8 +206,8 @@ public class Knapsack {
 
     public void solve() {
 
-        int populationSize = 32;
-        int maxGeneration = 100;
+        int populationSize = 50;
+        int maxGeneration = 10;
         double Pc = 0.6;
         double Pm = 0.05;
         ArrayList<Chromosome> currentGeneration = InitializePopulation(populationSize);
@@ -216,7 +216,7 @@ public class Knapsack {
         for (int i = 0; i < maxGeneration; i++) {
             ArrayList<Chromosome> newGeneration = new ArrayList<>();
 
-            while (newGeneration.size() != currentGeneration.size()) {
+            for (int j = 0; j < populationSize / 2; j++) {
 
                 ArrayList<Chromosome> selectedParents = Selection(currentGeneration);
                 ArrayList<Chromosome> parentsCrossover = Crossover(selectedParents, Pc);
@@ -224,8 +224,10 @@ public class Knapsack {
                 newGeneration.add(parentsCrossover.get(1));
 
             }
-            Mutation(newGeneration, Pm);
+
+            Mutation(currentGeneration, newGeneration, Pm);
             Replacement(currentGeneration, newGeneration);
+
         }
 
         int bestFitness = Integer.MIN_VALUE;
@@ -234,8 +236,8 @@ public class Knapsack {
                 bestFitness = c.getFitnessValue();
             }
         }
-
         System.out.println(bestFitness);
+
         clearItems();
 
     }
